@@ -17,8 +17,8 @@ public interface UserDao {
 
     String getConversationByParticipantsId(int firstUser, int secondUser);
 
-    void addUserToConversation(String conversationName, String userId);
+    void addUserToConversation(String conversationName, Integer userId);
 
-    String getUserIdByName(String firstUser);
+    Integer getUserIdByName(String firstUser);
 
 }

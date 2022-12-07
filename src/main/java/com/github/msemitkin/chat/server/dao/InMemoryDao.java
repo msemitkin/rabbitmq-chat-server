@@ -69,16 +69,15 @@ public class InMemoryDao implements UserDao {
     }
 
     @Override
-    public void addUserToConversation(String conversationName, String userId) {
-        String userName = getUserNameById(Integer.parseInt(userId));
+    public void addUserToConversation(String conversationName, Integer userId) {
+        String userName = getUserNameById(userId);
         getConversationByName(conversationName).addUserName(userName);
     }
 
     @Override
-    public String getUserIdByName(String firstUser) {
+    public Integer getUserIdByName(String firstUser) {
         return users.stream().filter(user -> user.getUsername().equals(firstUser))
             .map(UserData::getId)
-            .map(Object::toString)
             .findAny()
             .orElse(null);
     }

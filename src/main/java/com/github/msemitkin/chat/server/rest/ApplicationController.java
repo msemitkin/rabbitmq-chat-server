@@ -1,9 +1,8 @@
 package com.github.msemitkin.chat.server.rest;
 
+import com.github.msemitkin.chat.server.dao.UserDao;
 import com.github.msemitkin.chat.server.rest.model.UserData;
 import com.github.msemitkin.chat.server.rest.model.request.CreateConversationRequest;
-import com.github.msemitkin.chat.server.rest.model.request.GetContactsRequest;
-import com.github.msemitkin.chat.server.rest.model.request.GetConversationRequest;
 import com.github.msemitkin.chat.server.rest.model.request.LoginRequest;
 import com.github.msemitkin.chat.server.rest.model.response.CreateConversationResponse;
 import com.github.msemitkin.chat.server.rest.model.response.GetContactsResponse;
@@ -13,21 +12,27 @@ import com.github.msemitkin.chat.server.rest.model.response.RegisterResponse;
 import com.github.msemitkin.chat.server.service.RegisterUserService;
 import com.github.msemitkin.chat.server.utils.QueueHelper;
 import com.github.msemitkin.chat.server.utils.StringUtils;
-import com.github.msemitkin.chat.server.dao.UserDao;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
 @RestController
-public class ApiMethods {
+public class ApplicationController {
 
     private final UserDao userDao;
     private final QueueHelper queueHelper;
     private final RegisterUserService registerUserService;
 
-    public ApiMethods(UserDao userDao, QueueHelper queueHelper, RegisterUserService registerUserService) {
+    public ApplicationController(
+        UserDao userDao,
+        QueueHelper queueHelper,
+        RegisterUserService registerUserService
+    ) {
         this.userDao = userDao;
         this.queueHelper = queueHelper;
         this.registerUserService = registerUserService;
@@ -35,12 +40,12 @@ public class ApiMethods {
 
     @PostMapping("/api/login")
     public LoginResponse login(@RequestBody LoginRequest loginRequest) {
-        String userIdByName = userDao.getUserIdByName(loginRequest.getUsername());
+        Integer userIdByName = userDao.getUserIdByName(loginRequest.getUsername());
         if (userIdByName == null) {
             UserData userData = new UserData();
             userData.setUsername(loginRequest.getUsername());
             userData.setPassword(loginRequest.getPassword());
-            RegisterResponse register = register(userData);
+            RegisterResponse register = registerUserService.registerUser(userData);
             return new LoginResponse(register.getExchange());
         }
         String password = userDao.getUserPassword(loginRequest.getUsername());
@@ -53,26 +58,24 @@ public class ApiMethods {
         return new LoginResponse(exchange);
     }
 
-    @PostMapping("/api/register")
-    public RegisterResponse register(@RequestBody UserData newUser) {
-        return registerUserService.registerUser(newUser);
-    }
-
-    @PostMapping("/api/contacts")
-    public GetContactsResponse getContacts(@RequestBody GetContactsRequest getContactsRequest) {
-        List<String> contacts = userDao.getUserContacts(getContactsRequest.getUsername());
+    @GetMapping("/api/users/{userName}/contacts")
+    public GetContactsResponse getContacts(@PathVariable("userName") String userName) {
+        List<String> contacts = userDao.getUserContacts(userName);
         return new GetContactsResponse(contacts);
     }
 
-    @PostMapping("/api/conversation")
-    public GetConversationResponse getConversation(@RequestBody GetConversationRequest conversationRequest) {
-        String firstUserId = userDao.getUserIdByName(conversationRequest.getFirstUser());
-        String secondUserId = userDao.getUserIdByName(conversationRequest.getSecondUser());
-        String conversationName = userDao.getConversationByParticipantsId(Integer.parseInt(firstUserId), Integer.parseInt(secondUserId));
+    @GetMapping("/api/conversations")
+    public GetConversationResponse getConversation(
+        @RequestParam("firstUser") String firstUser,
+        @RequestParam("secondUser") String secondUser
+    ) {
+        Integer firstUserId = userDao.getUserIdByName(firstUser);
+        Integer secondUserId = userDao.getUserIdByName(secondUser);
+        String conversationName = userDao.getConversationByParticipantsId(firstUserId, secondUserId);
         return new GetConversationResponse(conversationName);
     }
 
-    @PostMapping("/api/conversation/create")
+    @PostMapping("/api/conversations")
     public CreateConversationResponse createConversation(@RequestBody CreateConversationRequest createConversationRequest) {
         String newConversationName = StringUtils.getRandomString(8);
 
@@ -87,7 +90,7 @@ public class ApiMethods {
         return new CreateConversationResponse(newConversationName);
     }
 
-    private String getUserIdByName(String firstUser) {
+    private Integer getUserIdByName(String firstUser) {
         return userDao.getUserIdByName(firstUser);
     }
 }
